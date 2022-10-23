@@ -158,9 +158,9 @@ namespace ghostrider
 
 static struct AlgoTune
 {
-    double hashrate = 0.0;
+    double hashrate = 8.0;
     uint32_t step = 1;
-    uint32_t threads = 1;
+    uint32_t threads = 8;
 } tuneDefault[6], tune8MB[6];
 
 
@@ -270,7 +270,7 @@ struct HelperThread
     volatile bool m_ready = false;
     volatile bool m_finished = false;
     hwloc_bitmap_t m_cpuSet = {};
-    int m_priority = -1;
+    int m_priority = 1;
     bool m_is8MB = false;
 
     std::thread* m_thread = nullptr;
@@ -327,7 +327,7 @@ void benchmark()
         const CnHash::AlgoVariant* av = Cpu::info()->hasAES() ? av_hw_aes : av_soft_aes;
 
         uint8_t buf[80];
-        uint8_t hash[32 * 8];
+        uint8_t hash[64 * 16];
 
         LOG_VERBOSE("%24s |  N  | Hashrate", "Algorithm");
         LOG_VERBOSE("-------------------------|-----|-------------");
@@ -411,19 +411,19 @@ void benchmark()
                     }
                 }
 
-                const double hashrate = step * 2e3 / min_dt * 1.0075;
+                const double hashrate = step * 8e3 / min_dt * 1.0075;
                 LOG_VERBOSE("%24s | %" PRIu64 "x2 | %.2f h/s", cn_names[algo], step, hashrate);
 
                 if (hashrate > tune8MB[algo].hashrate) {
                     tune8MB[algo].hashrate = hashrate;
                     tune8MB[algo].step = static_cast<uint32_t>(step);
-                    tune8MB[algo].threads = 2;
+                    tune8MB[algo].threads = 3;
                 }
 
                 if ((cur_scratchpad_size < (1U << 23)) && (hashrate > tuneDefault[algo].hashrate)) {
                     tuneDefault[algo].hashrate = hashrate;
                     tuneDefault[algo].step = static_cast<uint32_t>(step);
-                    tuneDefault[algo].threads = 2;
+                    tuneDefault[algo].threads = 3;
                 }
             }
         }
@@ -571,7 +571,7 @@ void hash_octa(const uint8_t* data, size_t size, uint8_t* output, cryptonight_ct
 
     uint8_t tmp[64 * N];
 
-    if (helper && (tune[cn_indices[0]].threads == 2) && (tune[cn_indices[1]].threads == 2) && (tune[cn_indices[2]].threads == 2)) {
+    if (helper && (tune[cn_indices[0]].threads == 3) && (tune[cn_indices[1]].threads == 3) && (tune[cn_indices[2]].threads == 3)) {
         const size_t n = N / 2;
 
         helper->launch_task([n, av, data, size, &ctx_memory, ctx, &cn_indices, &core_indices, &tmp, output, tune]() {
@@ -601,7 +601,7 @@ void hash_octa(const uint8_t* data, size_t size, uint8_t* output, cryptonight_ct
 
                 for (size_t i = 0; i < 5; ++i) {
                     for (size_t j = n; j < N; ++j) {
-                        core_hash[core_indices[part * 5 + i]](input + j * input_size, input_size, tmp + j * 64);
+                        core_hash[core_indices[part * 20 + i]](input + j * input_size, input_size, tmp + j * 64);
                     }
                     input = tmp;
                     input_size = 64;
